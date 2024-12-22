@@ -19,6 +19,15 @@ model User {
   image    String
   email    String   @unique
   provider Provider
+  Post     Post[]
+}
+
+model Post {
+  id      String @id @default(uuid())
+  title   String
+  content String
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
 }
 
 enum Provider {
