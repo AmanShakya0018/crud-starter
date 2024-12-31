@@ -4,9 +4,19 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Pencil, Loader2, Trash } from "lucide-react";
 
 interface Post {
   id: string;
+  title: string;
+  content: string;
+}
+
+interface EditFormData {
   title: string;
   content: string;
 }
@@ -18,7 +28,11 @@ const Myposts = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  const [deletingPostId, setDeletingPostId] = useState<string | null>(null); // Track post being deleted
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [formData, setFormData] = useState<EditFormData>({ title: "", content: "" });
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -46,18 +60,52 @@ const Myposts = () => {
   }, [session]);
 
   const handleDelete = async (id: string) => {
-    setDeletingPostId(id); // Track the post being deleted
+    setDeletingPostId(id);
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/posts/delete/${id}` // Use your delete API
+        `${process.env.NEXT_PUBLIC_API_URL}/api/posts/delete/${id}`
       );
       if (response.status === 200) {
-        setPosts((prevPosts) => prevPosts.filter((post) => post.id !== id)); // Update posts after deletion
+        setPosts((prevPosts) => prevPosts.filter((post) => post.id !== id));
       }
     } catch (error) {
       console.error("Error deleting post:", error);
     } finally {
-      setDeletingPostId(null); // Reset the deleting post ID
+      setDeletingPostId(null);
+    }
+  };
+
+  const handleEdit = (post: Post) => {
+    setEditingPost(post);
+    setFormData({ title: post.title, content: post.content });
+    setDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingPost) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/posts/update/${editingPost.id}`,
+        formData
+      );
+
+      if (response.status === 200) {
+        setPosts((prevPosts) =>
+          prevPosts.map((post) =>
+            post.id === editingPost.id
+              ? { ...post, title: formData.title, content: formData.content }
+              : post
+          )
+        );
+        setDialogOpen(false);
+      }
+    } catch (error) {
+      console.error("Error updating post:", error);
+    } finally {
+      setIsUpdating(false);
+      setEditingPost(null);
     }
   };
 
@@ -65,51 +113,103 @@ const Myposts = () => {
     return <p>You must be logged in to view your posts.</p>;
   }
 
-  if (loading) return <p className="text-white pt-20 ">Loading...</p>;
+  if (loading) return <p className="text-white pt-20">Loading...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
 
   return (
-    <div className="pt-20 pl-20 grid grid-cols-4 gap-4">
-      {posts.length === 0 ? (
-        <p className="text-xl font-bold text-black dark:text-white">No posts available.</p>
-      ) : (
-        posts.map((post) => (
-          <div key={post.id} className="mb-4">
-            <h2 className="text-xl font-bold text-black dark:text-white">{post.title}</h2>
-            <p>{post.content}</p>
-            <button
-              className={`mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700 transition flex items-center justify-center ${deletingPostId === post.id ? "cursor-not-allowed opacity-50" : ""
-                }`}
-              onClick={() => handleDelete(post.id)}
-              disabled={deletingPostId === post.id} // Disable button if deleting
+    <div className="container mx-auto px-4 py-20">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {posts.length === 0 ? (
+          <p className="text-xl font-bold text-black dark:text-white col-span-full">
+            No posts available.
+          </p>
+        ) : (
+          posts.map((post) => (
+            <div
+              key={post.id}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-all hover:shadow-lg"
             >
-              {deletingPostId === post.id ? (
-                <div role="status" className="flex items-center">
-                  <svg
-                    aria-hidden="true"
-                    className="w-4 h-4 text-gray-200 animate-spin dark:text-gray-600 fill-white"
-                    viewBox="0 0 100 101"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                      fill="currentColor"
-                    />
-                    <path
-                      d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                      fill="currentFill"
-                    />
-                  </svg>
-                  <span className="sr-only">Deleting...</span>
-                </div>
-              ) : (
-                "Delete"
-              )}
-            </button>
-          </div>
-        ))
-      )}
+              <h2 className="text-xl font-bold text-black dark:text-white mb-3">
+                {post.title}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">{post.content}</p>
+              <div className="flex space-x-2">
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(post)}
+                      className="flex items-center"
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Post</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Title"
+                          value={formData.title}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, title: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Textarea
+                          placeholder="Content"
+                          value={formData.content}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, content: e.target.value }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleUpdate}
+                        disabled={isUpdating}
+                        className="w-full sm:w-auto"
+                      >
+                        {isUpdating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          "Update Post"
+                        )}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(post.id)}
+                  disabled={deletingPostId === post.id}
+                  className="flex items-center"
+                >
+                  {deletingPostId === post.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Trash className="h-4 w-4 mr-1" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 };

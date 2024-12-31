@@ -21,7 +21,7 @@ const Navbar = () => {
           <Link href="/" className="flex items-center space-x-2">
             {/* add a .png file in public folder for website logo, sample png is used as example, design your own*/}
             <Image src="/logo.png" width={40} height={40} alt="Logo" unoptimized={true} className='rounded-xl' />
-            <span className="text-xl font-bold">Noteify</span>
+            <span className="text-xl font-bold">CRUD</span>
           </Link>
 
           <div
