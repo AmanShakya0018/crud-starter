@@ -2,13 +2,11 @@ import prisma from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
 interface Params {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const { id } = await params;
+  const id = (await params).id;
   const { title, content } = await req.json();
 
   if (!id) {

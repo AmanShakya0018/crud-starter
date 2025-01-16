@@ -3,14 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 
 interface Params {
-    params: {
-        id: string;
-    };
+    params: Promise<{ id: string }>
 }
 
 export async function GET(req: NextRequest, { params }: Params) {
     try {
-        const { id } = await params;
+        const id = (await params).id;
 
 
         if (!id) {
